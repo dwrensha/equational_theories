@@ -15,8 +15,8 @@ initialize magmaLawExt : SimplePersistentEnvExtension (Name) (Array Name) ←
     addEntryFn    := Array.push
   }
 
-def getMagmaLaws {M} [Monad M] [MonadEnv M] [MonadLift ImportM M] : M (Array (Name × NatMagmaLaw)) := do
-  let lawNames := magmaLawExt.getState (← getEnv)
+def getMagmaLaws : ImportM (Array (Name × NatMagmaLaw)) := do
+  let lawNames := magmaLawExt.getState (← read).env
   lawNames.mapM fun lawName ↦ do return (lawName, ← mkNatMagmaLaw lawName)
 
 /--

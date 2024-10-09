@@ -26,7 +26,7 @@ def main : IO Unit := do
   let env ← importModules #[
     { module := `equational_theories.Equations },
     { module := `equational_theories.AllEquations }] .empty
-  let laws := magmaLawExt.getState env
+  let laws ← getMagmaLaws.run { env := env, opts := {} }
   let jsonOutput : Json := Json.arr <| laws.map fun ⟨lawName, law⟩ => .mkObj [
     ("equation", "Equation" ++ (lawName.toString.drop "Law".length)),
     ("law", ToJson.toJson law)
