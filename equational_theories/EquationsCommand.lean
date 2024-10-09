@@ -9,14 +9,15 @@ def mkNatMagmaLaw (declName : Name) : ImportM NatMagmaLaw := do
   let { env, opts, .. } ← read
   IO.ofExcept <| unsafe env.evalConstCheck NatMagmaLaw opts ``NatMagmaLaw declName
 
-initialize magmaLawExt : SimplePersistentEnvExtension (Name × NatMagmaLaw) (Array (Name × NatMagmaLaw)) ←
+initialize magmaLawExt : SimplePersistentEnvExtension (Name) (Array Name) ←
   registerSimplePersistentEnvExtension {
     addImportedFn := Array.concatMap id
     addEntryFn    := Array.push
   }
 
-def getMagmaLaws {M} [Monad M] [MonadEnv M] : M (Array (Name × NatMagmaLaw)) := do
-  return magmaLawExt.getState (← getEnv)
+def getMagmaLaws {M} [Monad M] [MonadEnv M] [MonadLift ImportM M] : M (Array (Name × NatMagmaLaw)) := do
+  let lawNames := magmaLawExt.getState (← getEnv)
+  lawNames.mapM fun lawName ↦ do return (lawName, ← mkNatMagmaLaw lawName)
 
 /--
 For a more concise syntax, but more importantly to speed up elaboration (where type inference
@@ -88,8 +89,7 @@ elab mods:declModifiers tk:"equation " i:num " := " tsyn:term : command => do
   elabCommand (← `(command| abbrev%$tk $thmName : ∀ (G : Type _) [$inst : Magma G], G ⊧ $lawIdent ↔ $eqIdent G :=
                     fun G _ ↦ Iff.trans (Law.satisfies_fin_satisfies_nat G $finLawIdent).symm ($finThmName G)))
   -- register the law
-  modifyEnv (magmaLawExt.addEntry · (lawName, ← (mkNatMagmaLaw lawName).run
-    { env := (← getEnv), opts := (← getOptions) }))
+  modifyEnv (magmaLawExt.addEntry · lawName)
   Command.liftTermElabM do
     -- TODO: This will go wrong if we are in a namespace. Is this really needed, or is there
     -- a way to pass the current position already to the `(command|` above?
